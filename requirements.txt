@@ -1,0 +1,6 @@
+# Core dependencies
+requests>=2.31.0
+pyyaml>=6.0
+rich>=13.0.0
+
+# Development dependencies (install with: pip install -r requirements.txt -r requirements-dev.txt)

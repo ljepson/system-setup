@@ -1,0 +1,58 @@
+# System Setup Configuration Example
+# Copy this file to one of these locations:
+#   - ./system_setup.yaml (current directory)
+#   - ~/.system_setup.yaml (home directory)
+#   - ~/.config/system_setup.yaml (config directory)
+#
+# Or specify with: setup.py --config /path/to/config.yaml
+
+# Package configuration
+packages:
+  # Additional packages to install beyond the defaults
+  # These will be installed using the platform's package manager
+  additional_packages:
+    - docker          # Container runtime
+    - terraform       # Infrastructure as Code
+    - kubectl         # Kubernetes CLI
+    - ansible         # Automation tool
+    # - git-lfs       # Git Large File Storage
+    # - tmux          # Terminal multiplexer
+    # - vim           # Text editor
+
+# Security settings
+security:
+  # Security profile: normal, strict, or reduced
+  # - normal: Standard security settings (recommended)
+  # - strict: Enhanced security (disables some conveniences)
+  # - reduced: Reduced security for development (NOT recommended for production)
+  profile: normal
+
+# Dotfiles management
+dotfiles:
+  # Google Drive file ID for your dotfiles tarball
+  # To get the ID: Share your file -> Copy link -> Extract ID from URL
+  # Example URL: https://drive.google.com/file/d/1ijyAcpSGqlYji-ojPBnsSnaMmpj7Dn4D/view
+  # The ID is: 1ijyAcpSGqlYji-ojPBnsSnaMmpj7Dn4D
+  gdrive_id: YOUR_GOOGLE_DRIVE_FILE_ID_HERE
+
+  # SHA256 checksum of the dotfiles tarball (for verification)
+  # Generate with: shasum -a 256 /path/to/dotfiles.tar.gz
+  # Set to 'skip' to disable checksum verification
+  checksum: skip
+
+  # Require checksum verification (fail if checksum doesn't match)
+  # If false, warns but continues even if checksum fails
+  checksum_required: false
+
+# Shell configuration (future use)
+shell:
+  # Default shell to configure
+  default: zsh  # Options: zsh, bash
+
+  # Shell plugins to install (future feature)
+  plugins:
+    - git
+    - zoxide
+    - fzf
+    # - docker
+    # - kubectl
