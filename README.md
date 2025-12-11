@@ -7,10 +7,11 @@ Manages packages, dotfiles, system settings, and shell configuration across macO
 ## Features
 
 🚀 **Cross-Platform**: macOS, Linux (Ubuntu, Arch, Fedora, etc.), Windows (native support)
-📦 **Package Management**: Homebrew, APT, Pacman, DNF, Winget, Chocolatey
-🏠 **Dotfiles**: Google Drive integration with checksum verification
-⚙️ **System Settings**: macOS defaults, GNOME/KDE settings, Windows registry (planned)
-🐚 **Shell Config**: Zsh/Bash configuration
+📦 **Package Management**: Homebrew, APT, Pacman + Paru (AUR), DNF, Winget, Chocolatey
+🏠 **Dotfiles**: Chezmoi integration (recommended) or Google Drive
+⚙️ **System Settings**: macOS defaults, GNOME/KDE settings, Hyprland desktop
+🐚 **Shell Config**: Fish shell with Tide prompt, Zsh, Bash
+🛠️ **Modern Tools**: Installs eza, bat, fd, ripgrep, zoxide, mise, starship, lazygit, and more
 💾 **Resumable**: State tracking for interrupted runs
 🧪 **Tested**: Comprehensive test suite with pytest
 📝 **Configurable**: YAML configuration files
@@ -72,6 +73,10 @@ python3 setup.py
 # Run only specific section
 ./setup.py --only=packages
 ./setup.py --only=dotfiles
+./setup.py --only=chezmoi
+./setup.py --only=hyprland
+./setup.py --only=fish
+./setup.py --only=modern-tools
 ./setup.py --only=settings
 ./setup.py --only=shell
 
@@ -190,11 +195,21 @@ system-setup/
 │   │   ├── homebrew.py
 │   │   ├── apt.py
 │   │   ├── pacman.py
+│   │   ├── paru.py         # AUR helper for Arch
 │   │   └── winget.py
 │   ├── tasks/              # Setup tasks
-│   │   ├── dotfiles.py
+│   │   ├── chezmoi.py      # Chezmoi dotfiles management
+│   │   ├── dotfiles.py     # Legacy Google Drive dotfiles
+│   │   ├── fish.py         # Fish shell + Tide prompt
+│   │   ├── hyprland.py     # Hyprland desktop setup
+│   │   ├── modern_tools.py # Modern CLI tools (eza, bat, etc.)
 │   │   ├── settings.py
 │   │   └── shell.py
+│   ├── templates/          # Configuration templates
+│   │   ├── hyprland/
+│   │   ├── fish/
+│   │   ├── ghostty/
+│   │   └── starship/
 │   └── utils/              # Utilities
 │       ├── checksum.py
 │       └── download.py
@@ -216,9 +231,13 @@ system-setup/
 - Dry-run support
 
 **Tasks** (`system_setup/tasks/`)
-- `DotfilesTask`: Download and install dotfiles from Google Drive
+- `ChezmoiTask`: Manage dotfiles with chezmoi (recommended)
+- `DotfilesTask`: Download and install dotfiles from Google Drive (legacy)
+- `FishTask`: Configure Fish shell with Tide prompt and plugins
+- `HyprlandTask`: Set up Hyprland desktop with HyprPanel, Walker, etc.
+- `ModernToolsTask`: Install modern CLI tools (eza, bat, fd, ripgrep, etc.)
 - `SettingsTask`: Apply system-specific settings
-- `ShellTask`: Configure default shell
+- `ShellTask`: Configure default shell (zsh/bash)
 
 **State Management** (`system_setup/state.py`)
 - Tracks completed steps
@@ -245,10 +264,13 @@ Casks: visual-studio-code, alfred, iterm2, dropbox, cloudflare-warp
 ### Linux
 
 ✅ APT (Ubuntu, Debian, Raspberry Pi)
-✅ Pacman (Arch Linux)
+✅ Pacman + Paru (Arch Linux with AUR support)
 ✅ DNF (Fedora)
 ✅ Zypper (openSUSE) - detected but limited support
 ✅ GNOME and KDE settings
+✅ Hyprland desktop environment
+✅ Fish shell with Tide prompt
+✅ Modern CLI tools
 ✅ Systemd detection
 
 **Debian/Ubuntu Packages**:
@@ -256,9 +278,19 @@ Casks: visual-studio-code, alfred, iterm2, dropbox, cloudflare-warp
 bat, curl, fzf, git, htop, neovim, python3-pip, ripgrep, wget, zsh
 ```
 
-**Arch Linux Packages**:
+**Arch Linux Packages** (via paru):
 ```
-bat, curl, eza, fnm, fzf, git, htop, neovim, python-pip, ripgrep, wget, zsh
+# Core tools
+fish, nushell, starship, ghostty, zellij, btop, fastfetch
+
+# Hyprland desktop
+hyprland, hyprlock, hypridle, hyprshot, swww, waypaper, walker
+
+# Modern CLI
+eza, bat, fd, ripgrep, zoxide, fzf, lazygit, delta
+
+# AUR packages (installed automatically via paru)
+ags-hyprpanel-git, ghostty, walker
 ```
 
 ### Windows
@@ -447,8 +479,12 @@ See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for detailed comparison.
 ## Roadmap
 
 - [ ] Homebrew auto-installation on macOS
-- [ ] AUR helper installation on Arch
-- [ ] NVM/Zinit installation
+- [x] AUR helper installation on Arch (paru)
+- [x] Modern version managers (mise)
+- [x] Fish shell + Tide prompt
+- [x] Hyprland desktop environment
+- [x] Modern CLI tools (eza, bat, fd, etc.)
+- [x] Chezmoi dotfiles management
 - [ ] Windows registry settings
 - [ ] Better Windows app installation
 - [ ] Configuration profiles (minimal, developer, full)

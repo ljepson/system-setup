@@ -11,7 +11,7 @@ from system_setup.logger import get_logger, setup_logger
 from system_setup.packages import get_package_manager
 from system_setup.platform import detect_platform
 from system_setup.state import StateManager
-from system_setup.tasks import DotfilesTask, SettingsTask, ShellTask
+from system_setup.tasks import ChezmoiTask, DotfilesTask, SettingsTask, ShellTask
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -265,13 +265,14 @@ def main() -> int:
 
         # Dotfiles
         if should_run_section('dotfiles', args.only):
-            dotfiles_task = DotfilesTask(
+            chezmoi_task = ChezmoiTask(
                 config=config,
                 state=state,
+                platform=platform,
                 dry_run=args.dry_run,
                 auto_yes=args.auto_yes,
             )
-            if not dotfiles_task.run():
+            if not chezmoi_task.run():
                 success = False
 
         # Settings

@@ -17,7 +17,6 @@ packages:
     - ansible         # Automation tool
     # - git-lfs       # Git Large File Storage
     # - tmux          # Terminal multiplexer
-    # - vim           # Text editor
 
 # Security settings
 security:
@@ -27,12 +26,18 @@ security:
   # - reduced: Reduced security for development (NOT recommended for production)
   profile: normal
 
-# Dotfiles management
+# Chezmoi dotfiles management (recommended)
+chezmoi:
+  # Git repository URL for dotfiles
+  # Can be GitHub shorthand (username/repo) or full URL
+  repo: github.com/username/dotfiles
+  # repo: git@github.com:username/dotfiles.git
+
+# Legacy dotfiles management (Google Drive)
 dotfiles:
   # Google Drive file ID for your dotfiles tarball
   # To get the ID: Share your file -> Copy link -> Extract ID from URL
   # Example URL: https://drive.google.com/file/d/1ijyAcpSGqlYji-ojPBnsSnaMmpj7Dn4D/view
-  # The ID is: 1ijyAcpSGqlYji-ojPBnsSnaMmpj7Dn4D
   gdrive_id: YOUR_GOOGLE_DRIVE_FILE_ID_HERE
 
   # SHA256 checksum of the dotfiles tarball (for verification)
@@ -41,18 +46,73 @@ dotfiles:
   checksum: skip
 
   # Require checksum verification (fail if checksum doesn't match)
-  # If false, warns but continues even if checksum fails
   checksum_required: false
 
-# Shell configuration (future use)
-shell:
-  # Default shell to configure
-  default: zsh  # Options: zsh, bash
+# Hyprland desktop configuration (Linux only)
+hyprland:
+  # Enable Hyprland setup
+  enabled: true
 
-  # Shell plugins to install (future feature)
+  # Preferred terminal emulator
+  # Options: ghostty, kitty, alacritty, foot, wezterm
+  terminal: ghostty
+
+  # Preferred application launcher
+  # Options: walker, wofi, rofi, fuzzel, tofi
+  launcher: walker
+
+  # Preferred status bar
+  # Options: hyprpanel, waybar, ags
+  bar: hyprpanel
+
+  # Additional packages to install for Hyprland
+  extra_packages:
+    - swww          # Animated wallpaper
+    - waypaper      # Wallpaper GUI
+    - satty         # Screenshot annotation
+
+# Fish shell configuration
+fish:
+  # Enable Fish shell setup
+  enabled: true
+
+  # Set Fish as default shell
+  set_default: true
+
+  # Additional Fish plugins to install via Fisher
   plugins:
-    - git
-    - zoxide
-    - fzf
-    # - docker
-    # - kubectl
+    # - jorgebucaran/fisher     # Plugin manager (always installed)
+    # - IlanCosman/tide@v6      # Tide prompt (always installed)
+    # - PatrickF1/fzf.fish      # fzf integration (always installed)
+    - jethrokuan/z              # Directory jumping
+    # - meaningful-ooo/sponge   # Clean command history
+    # - jhillyerd/plugin-git    # Git abbreviations
+
+# Modern CLI tools configuration
+modern_tools:
+  # Enable modern CLI tools installation
+  enabled: true
+
+  # Tools to skip installing (by command name)
+  skip:
+    # - eza       # ls replacement
+    # - bat       # cat replacement
+    # - fd        # find replacement
+    # - ripgrep   # grep replacement
+
+# Theme configuration
+theme:
+  # Colorscheme
+  # Options: catppuccin-mocha, catppuccin-macchiato, rose-pine, nord, dracula
+  colorscheme: catppuccin-mocha
+
+  # Terminal font (must be installed separately)
+  font: JetBrainsMono Nerd Font
+
+  # Icon theme
+  # Options: Papirus-Dark, Tela-circle-dark, Catppuccin-Mocha
+  icons: Papirus-Dark
+
+  # Cursor theme
+  # Options: catppuccin-mocha-dark-cursors, Bibata-Modern-Classic
+  cursor: catppuccin-mocha-dark-cursors

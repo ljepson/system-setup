@@ -171,3 +171,103 @@ class Config:
     def checksum_required(self) -> bool:
         """Whether checksum verification is required."""
         return self.get_bool('dotfiles.checksum_required', False)
+
+    # Chezmoi configuration
+    @property
+    def chezmoi(self) -> Dict[str, Any]:
+        """Get chezmoi configuration section."""
+        return self.get('chezmoi', {})
+
+    @property
+    def dotfiles_repo(self) -> Optional[str]:
+        """Get dotfiles git repository URL for chezmoi."""
+        return self.get('chezmoi.repo') or self.get('dotfiles.repo')
+
+    # Hyprland configuration
+    @property
+    def hyprland(self) -> Dict[str, Any]:
+        """Get Hyprland configuration section."""
+        return self.get('hyprland', {})
+
+    @property
+    def hyprland_enabled(self) -> bool:
+        """Whether to set up Hyprland desktop."""
+        return self.get_bool('hyprland.enabled', True)
+
+    @property
+    def hyprland_terminal(self) -> str:
+        """Get preferred terminal for Hyprland."""
+        return self.get('hyprland.terminal', 'ghostty')
+
+    @property
+    def hyprland_launcher(self) -> str:
+        """Get preferred launcher for Hyprland."""
+        return self.get('hyprland.launcher', 'walker')
+
+    @property
+    def hyprland_bar(self) -> str:
+        """Get preferred status bar for Hyprland."""
+        return self.get('hyprland.bar', 'hyprpanel')
+
+    # Fish shell configuration
+    @property
+    def fish(self) -> Dict[str, Any]:
+        """Get Fish shell configuration section."""
+        return self.get('fish', {})
+
+    @property
+    def fish_enabled(self) -> bool:
+        """Whether to set up Fish shell."""
+        return self.get_bool('fish.enabled', True)
+
+    @property
+    def fish_set_default(self) -> bool:
+        """Whether to set Fish as default shell."""
+        return self.get_bool('fish.set_default', True)
+
+    @property
+    def fish_plugins(self) -> List[str]:
+        """Get additional Fish plugins to install."""
+        return self.get_list('fish.plugins', [])
+
+    # Modern tools configuration
+    @property
+    def modern_tools(self) -> Dict[str, Any]:
+        """Get modern tools configuration section."""
+        return self.get('modern_tools', {})
+
+    @property
+    def modern_tools_enabled(self) -> bool:
+        """Whether to install modern CLI tools."""
+        return self.get_bool('modern_tools.enabled', True)
+
+    @property
+    def modern_tools_skip(self) -> List[str]:
+        """Get list of modern tools to skip installing."""
+        return self.get_list('modern_tools.skip', [])
+
+    # Theme configuration
+    @property
+    def theme(self) -> Dict[str, Any]:
+        """Get theme configuration section."""
+        return self.get('theme', {})
+
+    @property
+    def theme_colorscheme(self) -> str:
+        """Get preferred colorscheme."""
+        return self.get('theme.colorscheme', 'catppuccin-mocha')
+
+    @property
+    def theme_font(self) -> str:
+        """Get preferred terminal font."""
+        return self.get('theme.font', 'JetBrainsMono Nerd Font')
+
+    @property
+    def theme_icons(self) -> str:
+        """Get preferred icon theme."""
+        return self.get('theme.icons', 'Papirus-Dark')
+
+    @property
+    def theme_cursor(self) -> str:
+        """Get preferred cursor theme."""
+        return self.get('theme.cursor', 'catppuccin-mocha-dark-cursors')
