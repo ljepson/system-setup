@@ -190,6 +190,10 @@ class ChezmoiTask:
 
     def _apply_dotfiles(self) -> bool:
         """Apply chezmoi dotfiles to home directory."""
+        if self.dry_run:
+            self.logger.info("[DRY RUN] Would run: chezmoi apply")
+            return True
+
         if not self.auto_yes:
             # Show diff first
             self.logger.info("Checking for changes...")
@@ -214,10 +218,6 @@ class ChezmoiTask:
             if response.lower() not in ('y', 'yes'):
                 self.logger.info("Skipping chezmoi apply")
                 return True
-
-        if self.dry_run:
-            self.logger.info("[DRY RUN] Would run: chezmoi apply")
-            return True
 
         try:
             subprocess.run(['chezmoi', 'apply', '--verbose'], check=True)
