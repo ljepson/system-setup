@@ -1,0 +1,56 @@
+# Autumn server configuration (Debian 13, SSH-only)
+
+packages:
+  additional_packages:
+    # Shell & terminal
+    - fish
+    - zsh
+    - tmux
+    - btop
+    - fastfetch
+
+    # Modern CLI tools
+    - eza
+    - bat
+    - fd-find
+    - ripgrep
+    - fzf
+    - zoxide
+
+    # Editors
+    - helix
+
+    # Dev tools
+    - git
+    - lazygit
+    - jq
+    - yq
+
+    # File management
+    - yazi
+    - p7zip-full
+
+    # Misc
+    - curl
+    - wget
+    - rsync
+    - htop
+
+# Chezmoi dotfiles
+chezmoi:
+  repo: github.com/ljepson/dotfiles
+
+# Fish shell
+fish:
+  enabled: true
+  set_default: true
+  plugins:
+    - jethrokuan/z
+
+# Modern tools (some already in packages above)
+modern_tools:
+  enabled: true
+
+# Disable GUI stuff
+hyprland:
+  enabled: false
