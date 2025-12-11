@@ -37,7 +37,7 @@ packages:
 
 # Chezmoi dotfiles
 chezmoi:
-  repo: github.com/ljepson/dotfiles
+  repo: https://github.com/ljepson/dotfiles.git
 
 # Fish shell
 fish:

@@ -107,24 +107,36 @@ class ShellTask:
             return False
 
     def _configure_linux_shell(self) -> bool:
-        """Configure shell on Linux (zsh)."""
-        zsh_path = "/usr/bin/zsh"
+        """Configure shell on Linux."""
+        # Check if fish is enabled and should be default
+        if self.config.fish_enabled and self.config.fish_set_default:
+            shell_path = "/usr/bin/fish"
+            shell_name = "fish"
+        else:
+            shell_path = "/usr/bin/zsh"
+            shell_name = "zsh"
+
+        # Verify shell exists
+        if not Path(shell_path).exists():
+            self.logger.warning(f"{shell_name} not found at {shell_path}, skipping shell config")
+            self.state.mark_complete('shell_configured')
+            return True
 
         if not self.auto_yes:
-            response = input(f"Set {zsh_path} as default shell? (y/N): ")
+            response = input(f"Set {shell_path} as default shell? (y/N): ")
             if response.lower() not in ('y', 'yes'):
                 self.logger.info("Skipped shell configuration")
                 self.state.mark_complete('shell_configured')
                 return True
 
         if self.dry_run:
-            self.logger.info(f"[DRY RUN] Would set {zsh_path} as default shell")
+            self.logger.info(f"[DRY RUN] Would set {shell_path} as default shell")
             self.state.mark_complete('shell_configured')
             return True
 
         try:
-            subprocess.run(['chsh', '-s', zsh_path], check=True)
-            self.logger.success("Shell changed successfully")
+            subprocess.run(['chsh', '-s', shell_path], check=True)
+            self.logger.success(f"Shell changed to {shell_name} successfully")
             self.state.mark_complete('shell_configured')
             return True
         except subprocess.CalledProcessError as e:
