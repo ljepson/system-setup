@@ -7,27 +7,18 @@ packages:
     - zsh
     - tmux
     - btop
-    - fastfetch
 
-    # Modern CLI tools
-    - eza
+    # Modern CLI tools (in Debian repos)
     - bat
     - fd-find
     - ripgrep
     - fzf
-    - zoxide
-
-    # Editors
-    - helix
 
     # Dev tools
     - git
-    - lazygit
     - jq
-    - yq
 
     # File management
-    - yazi
     - p7zip-full
 
     # Misc
@@ -35,6 +26,14 @@ packages:
     - wget
     - rsync
     - htop
+
+# Tools NOT in Debian repos - install manually:
+# - helix: https://helix-editor.com (AppImage or build)
+# - yazi: cargo install yazi-fm
+# - lazygit: go install github.com/jesseduffield/lazygit@latest
+# - eza: cargo install eza
+# - zoxide: cargo install zoxide
+# - fastfetch: build from source or use neofetch
 
 # Chezmoi dotfiles
 chezmoi:

@@ -47,7 +47,33 @@ class ChezmoiTask:
         self.dry_run = dry_run
         self.auto_yes = auto_yes
         self.logger = get_logger()
-        self.chezmoi_path = Path.home() / ".local" / "share" / "chezmoi"
+        self.chezmoi_source_path = Path.home() / ".local" / "share" / "chezmoi"
+        self._chezmoi_bin: Optional[str] = None
+
+    def _get_chezmoi_cmd(self) -> str:
+        """Get the chezmoi command, checking common install locations."""
+        if self._chezmoi_bin:
+            return self._chezmoi_bin
+
+        # Check if in PATH
+        if shutil.which('chezmoi'):
+            self._chezmoi_bin = 'chezmoi'
+            return self._chezmoi_bin
+
+        # Check common install locations
+        locations = [
+            Path.home() / 'bin' / 'chezmoi',
+            Path.home() / '.local' / 'bin' / 'chezmoi',
+            Path('/usr/local/bin/chezmoi'),
+        ]
+        for loc in locations:
+            if loc.exists() and loc.is_file():
+                self._chezmoi_bin = str(loc)
+                return self._chezmoi_bin
+
+        # Default to just 'chezmoi' and hope for the best
+        self._chezmoi_bin = 'chezmoi'
+        return self._chezmoi_bin
 
     def run(self) -> bool:
         """
@@ -80,7 +106,9 @@ class ChezmoiTask:
 
     def _ensure_chezmoi_installed(self) -> bool:
         """Ensure chezmoi is installed."""
-        if shutil.which('chezmoi'):
+        # Check if already installed (in PATH or common locations)
+        chezmoi_cmd = self._get_chezmoi_cmd()
+        if shutil.which(chezmoi_cmd) or Path(chezmoi_cmd).exists():
             self.logger.info("Chezmoi is already installed")
             return True
 
@@ -97,12 +125,15 @@ class ChezmoiTask:
                 self.logger.success("Chezmoi installed via package manager")
                 return True
 
-        # Fallback to install script
+        # Fallback to install script - install to ~/.local/bin
         try:
+            bin_dir = Path.home() / '.local' / 'bin'
+            bin_dir.mkdir(parents=True, exist_ok=True)
             subprocess.run(
-                ['sh', '-c', 'curl -fsLS get.chezmoi.io | sh'],
+                ['sh', '-c', f'curl -fsLS get.chezmoi.io | sh -s -- -b {bin_dir}'],
                 check=True,
             )
+            self._chezmoi_bin = str(bin_dir / 'chezmoi')
             self.logger.success("Chezmoi installed via install script")
             return True
         except subprocess.CalledProcessError as e:
@@ -115,20 +146,20 @@ class ChezmoiTask:
 
         if not repo_url:
             # No repo configured, just ensure chezmoi is initialized
-            if not self.chezmoi_path.exists():
+            if not self.chezmoi_source_path.exists():
                 self.logger.info("No dotfiles repo configured, initializing empty chezmoi")
                 if self.dry_run:
                     self.logger.info("[DRY RUN] Would run: chezmoi init")
                     return True
                 try:
-                    subprocess.run(['chezmoi', 'init'], check=True)
+                    subprocess.run([self._get_chezmoi_cmd(), 'init'], check=True)
                     return True
                 except subprocess.CalledProcessError as e:
                     self.logger.error(f"Failed to initialize chezmoi: {e}")
                     return False
             return True
 
-        if self.chezmoi_path.exists():
+        if self.chezmoi_source_path.exists():
             # Already initialized, update from remote
             return self._update_from_remote()
         else:
@@ -154,7 +185,7 @@ class ChezmoiTask:
             return True
 
         try:
-            cmd = ['chezmoi', 'init', repo_url]
+            cmd = [self._get_chezmoi_cmd(), 'init', repo_url]
 
             # Add SSH flag for GitHub repos if needed
             if 'github.com' in repo_url and not repo_url.startswith('http'):
@@ -178,7 +209,7 @@ class ChezmoiTask:
         try:
             # Pull changes without applying (we'll apply separately)
             subprocess.run(
-                ['chezmoi', 'git', 'pull', '--', '--rebase'],
+                [self._get_chezmoi_cmd(), 'git', 'pull', '--', '--rebase'],
                 check=True,
             )
             self.logger.success("Chezmoi source updated from remote")
@@ -199,7 +230,7 @@ class ChezmoiTask:
             self.logger.info("Checking for changes...")
             try:
                 result = subprocess.run(
-                    ['chezmoi', 'diff'],
+                    [self._get_chezmoi_cmd(), 'diff'],
                     capture_output=True,
                     text=True,
                 )
@@ -220,7 +251,7 @@ class ChezmoiTask:
                 return True
 
         try:
-            subprocess.run(['chezmoi', 'apply', '--verbose'], check=True)
+            subprocess.run([self._get_chezmoi_cmd(), 'apply', '--verbose'], check=True)
             self.logger.success("Dotfiles applied successfully")
             return True
         except subprocess.CalledProcessError as e:
@@ -242,7 +273,7 @@ class ChezmoiTask:
             return True
 
         try:
-            subprocess.run(['chezmoi', 'add', str(path)], check=True)
+            subprocess.run([self._get_chezmoi_cmd(), 'add', str(path)], check=True)
             self.logger.success(f"Added {path} to chezmoi")
             return True
         except subprocess.CalledProcessError as e:
@@ -266,7 +297,7 @@ class ChezmoiTask:
             return True
 
         try:
-            subprocess.run(['chezmoi', 'add', '--template', str(path)], check=True)
+            subprocess.run([self._get_chezmoi_cmd(), 'add', '--template', str(path)], check=True)
             self.logger.success(f"Added {path} as template to chezmoi")
             return True
         except subprocess.CalledProcessError as e:
@@ -379,7 +410,7 @@ class ChezmoiTask:
         """
         try:
             result = subprocess.run(
-                ['chezmoi', 'managed'],
+                [self._get_chezmoi_cmd(), 'managed'],
                 capture_output=True,
                 text=True,
                 check=True,
@@ -397,7 +428,7 @@ class ChezmoiTask:
         """
         try:
             result = subprocess.run(
-                ['chezmoi', 'status'],
+                [self._get_chezmoi_cmd(), 'status'],
                 capture_output=True,
                 text=True,
                 check=True,
