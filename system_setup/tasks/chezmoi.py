@@ -1,7 +1,6 @@
 """Chezmoi dotfiles management task."""
 
 import shutil
-import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -115,14 +114,17 @@ class ChezmoiTask(BaseTask):
         try:
             bin_dir = Path.home() / '.local' / 'bin'
             bin_dir.mkdir(parents=True, exist_ok=True)
-            subprocess.run(
-                ['sh', '-c', f'curl -fsLS get.chezmoi.io | sh -s -- -b {bin_dir}'],
-                check=True,
+            result = self.cmd.run(
+                f'curl -fsLS get.chezmoi.io | sh -s -- -b {bin_dir}',
+                shell=True,
             )
-            self._chezmoi_bin = str(bin_dir / 'chezmoi')
-            self.logger.success("Chezmoi installed via install script")
-            return True
-        except subprocess.CalledProcessError as e:
+            if result.success:
+                self._chezmoi_bin = str(bin_dir / 'chezmoi')
+                self.logger.success("Chezmoi installed via install script")
+                return True
+            self.logger.error(f"Failed to install chezmoi: {result.stderr}")
+            return False
+        except Exception as e:
             self.logger.error(f"Failed to install chezmoi: {e}")
             return False
 
@@ -137,12 +139,11 @@ class ChezmoiTask(BaseTask):
                 if self.dry_run:
                     self.logger.info("[DRY RUN] Would run: chezmoi init")
                     return True
-                try:
-                    subprocess.run([self._get_chezmoi_cmd(), 'init'], check=True)
+                result = self.cmd.run([self._get_chezmoi_cmd(), 'init'], check=False)
+                if result.success:
                     return True
-                except subprocess.CalledProcessError as e:
-                    self.logger.error(f"Failed to initialize chezmoi: {e}")
-                    return False
+                self.logger.error(f"Failed to initialize chezmoi: {result.stderr}")
+                return False
             return True
 
         if self.chezmoi_source_path.exists():
@@ -170,19 +171,18 @@ class ChezmoiTask(BaseTask):
             self.logger.info(f"[DRY RUN] Would run: chezmoi init {repo_url}")
             return True
 
-        try:
-            cmd = [self._get_chezmoi_cmd(), 'init', repo_url]
+        cmd = [self._get_chezmoi_cmd(), 'init', repo_url]
 
-            # Add SSH flag for GitHub repos if needed
-            if 'github.com' in repo_url and not repo_url.startswith('http'):
-                cmd.append('--ssh')
+        # Add SSH flag for GitHub repos if needed
+        if 'github.com' in repo_url and not repo_url.startswith('http'):
+            cmd.append('--ssh')
 
-            subprocess.run(cmd, check=True)
+        result = self.cmd.run(cmd, check=False)
+        if result.success:
             self.logger.success("Chezmoi initialized from repository")
             return True
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Failed to initialize chezmoi from repo: {e}")
-            return False
+        self.logger.error(f"Failed to initialize chezmoi from repo: {result.stderr}")
+        return False
 
     def _update_from_remote(self) -> bool:
         """Update chezmoi source from remote repository."""
@@ -192,18 +192,17 @@ class ChezmoiTask(BaseTask):
             self.logger.info("[DRY RUN] Would run: chezmoi update --apply=false")
             return True
 
-        try:
-            # Pull changes without applying (we'll apply separately)
-            subprocess.run(
-                [self._get_chezmoi_cmd(), 'git', 'pull', '--', '--rebase'],
-                check=True,
-            )
+        # Pull changes without applying (we'll apply separately)
+        result = self.cmd.run(
+            [self._get_chezmoi_cmd(), 'git', 'pull', '--', '--rebase'],
+            check=False,
+        )
+        if result.success:
             self.logger.success("Chezmoi source updated from remote")
-            return True
-        except subprocess.CalledProcessError as e:
-            self.logger.warning(f"Failed to update from remote: {e}")
-            # Not fatal - we can still apply existing dotfiles
-            return True
+        else:
+            self.logger.warning(f"Failed to update from remote: {result.stderr}")
+        # Not fatal - we can still apply existing dotfiles
+        return True
 
     def _apply_dotfiles(self) -> bool:
         """Apply chezmoi dotfiles to home directory."""
@@ -214,35 +213,27 @@ class ChezmoiTask(BaseTask):
         if not self.auto_yes:
             # Show diff first
             self.logger.info("Checking for changes...")
-            try:
-                result = subprocess.run(
-                    [self._get_chezmoi_cmd(), 'diff'],
-                    capture_output=True,
-                    text=True,
-                )
-                if result.stdout:
-                    self.logger.info("Changes to be applied:")
-                    print(result.stdout[:2000])  # Limit output
-                    if len(result.stdout) > 2000:
-                        print("... (output truncated)")
-                else:
-                    self.logger.info("No changes to apply")
-                    return True
-            except subprocess.CalledProcessError:
-                pass
+            result = self.cmd.run_quiet([self._get_chezmoi_cmd(), 'diff'])
+            if result.stdout:
+                self.logger.info("Changes to be applied:")
+                print(result.stdout[:2000])  # Limit output
+                if len(result.stdout) > 2000:
+                    print("... (output truncated)")
+            else:
+                self.logger.info("No changes to apply")
+                return True
 
             response = input("Apply chezmoi dotfiles? (y/N): ")
             if response.lower() not in ('y', 'yes'):
                 self.logger.info("Skipping chezmoi apply")
                 return True
 
-        try:
-            subprocess.run([self._get_chezmoi_cmd(), 'apply', '--verbose'], check=True)
+        result = self.cmd.run([self._get_chezmoi_cmd(), 'apply', '--verbose'], check=False)
+        if result.success:
             self.logger.success("Dotfiles applied successfully")
             return True
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Failed to apply dotfiles: {e}")
-            return False
+        self.logger.error(f"Failed to apply dotfiles: {result.stderr}")
+        return False
 
     def add_file(self, path: Path) -> bool:
         """
@@ -258,13 +249,12 @@ class ChezmoiTask(BaseTask):
             self.logger.info(f"[DRY RUN] Would add {path} to chezmoi")
             return True
 
-        try:
-            subprocess.run([self._get_chezmoi_cmd(), 'add', str(path)], check=True)
+        result = self.cmd.run([self._get_chezmoi_cmd(), 'add', str(path)], check=False)
+        if result.success:
             self.logger.success(f"Added {path} to chezmoi")
             return True
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Failed to add {path}: {e}")
-            return False
+        self.logger.error(f"Failed to add {path}: {result.stderr}")
+        return False
 
     def add_template(self, path: Path) -> bool:
         """
@@ -282,13 +272,15 @@ class ChezmoiTask(BaseTask):
             self.logger.info(f"[DRY RUN] Would add {path} as template to chezmoi")
             return True
 
-        try:
-            subprocess.run([self._get_chezmoi_cmd(), 'add', '--template', str(path)], check=True)
+        result = self.cmd.run(
+            [self._get_chezmoi_cmd(), 'add', '--template', str(path)],
+            check=False,
+        )
+        if result.success:
             self.logger.success(f"Added {path} as template to chezmoi")
             return True
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Failed to add {path} as template: {e}")
-            return False
+        self.logger.error(f"Failed to add {path} as template: {result.stderr}")
+        return False
 
     def configure_data(self, data: Dict[str, str]) -> bool:
         """
@@ -394,16 +386,10 @@ class ChezmoiTask(BaseTask):
         Returns:
             List of managed file paths
         """
-        try:
-            result = subprocess.run(
-                [self._get_chezmoi_cmd(), 'managed'],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            return result.stdout.strip().split('\n') if result.stdout.strip() else []
-        except subprocess.CalledProcessError:
-            return []
+        result = self.cmd.run_quiet([self._get_chezmoi_cmd(), 'managed'])
+        if result.success and result.stdout.strip():
+            return result.stdout.strip().split('\n')
+        return []
 
     def get_status(self) -> Dict[str, str]:
         """
@@ -412,19 +398,13 @@ class ChezmoiTask(BaseTask):
         Returns:
             Dictionary mapping file paths to their status
         """
-        try:
-            result = subprocess.run(
-                [self._get_chezmoi_cmd(), 'status'],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            status = {}
-            for line in result.stdout.strip().split('\n'):
-                if line:
-                    parts = line.split(maxsplit=1)
-                    if len(parts) == 2:
-                        status[parts[1]] = parts[0]
-            return status
-        except subprocess.CalledProcessError:
+        result = self.cmd.run_quiet([self._get_chezmoi_cmd(), 'status'])
+        if not result.success:
             return {}
+        status = {}
+        for line in result.stdout.strip().split('\n'):
+            if line:
+                parts = line.split(maxsplit=1)
+                if len(parts) == 2:
+                    status[parts[1]] = parts[0]
+        return status

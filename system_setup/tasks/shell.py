@@ -1,6 +1,5 @@
 """Shell configuration task."""
 
-import subprocess
 from pathlib import Path
 
 from system_setup.platform.macos import MacOSPlatform
@@ -69,25 +68,22 @@ class ShellTask(BaseTask):
 
             if zsh_path not in shells:
                 self.logger.info(f"Adding {zsh_path} to /etc/shells...")
-                subprocess.run(
+                self.cmd.run(
                     f'echo "{zsh_path}" | sudo tee -a /etc/shells',
                     shell=True,
-                    check=True,
-                    capture_output=True,
                 )
         except Exception as e:
             self.logger.warning(f"Could not modify /etc/shells: {e}")
 
         # Change default shell
-        try:
-            self.logger.info(f"Changing default shell to {zsh_path}...")
-            subprocess.run(['chsh', '-s', zsh_path], check=True)
+        self.logger.info(f"Changing default shell to {zsh_path}...")
+        result = self.cmd.run(['chsh', '-s', zsh_path], check=False)
+        if result.success:
             self.logger.success("Shell changed successfully")
             self.state.mark_complete('shell_configured')
             return True
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Failed to change shell: {e}")
-            return False
+        self.logger.error(f"Failed to change shell: {result.stderr}")
+        return False
 
     def _configure_linux_shell(self) -> bool:
         """Configure shell on Linux."""
@@ -117,14 +113,13 @@ class ShellTask(BaseTask):
             self.state.mark_complete('shell_configured')
             return True
 
-        try:
-            subprocess.run(['chsh', '-s', shell_path], check=True)
+        result = self.cmd.run(['chsh', '-s', shell_path], check=False)
+        if result.success:
             self.logger.success(f"Shell changed to {shell_name} successfully")
             self.state.mark_complete('shell_configured')
             return True
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Failed to change shell: {e}")
-            return False
+        self.logger.error(f"Failed to change shell: {result.stderr}")
+        return False
 
     def _configure_windows_shell(self) -> bool:
         """Configure shell on Windows (PowerShell)."""

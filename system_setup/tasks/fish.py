@@ -1,7 +1,6 @@
 """Fish shell configuration task."""
 
 import shutil
-import subprocess
 from pathlib import Path
 from typing import List
 
@@ -165,24 +164,21 @@ class FishTask(BaseTask):
                     shells = f.read()
                 if fish_path not in shells:
                     self.logger.info(f"Adding {fish_path} to /etc/shells...")
-                    subprocess.run(
+                    self.cmd.run(
                         f'echo "{fish_path}" | sudo tee -a /etc/shells',
                         shell=True,
-                        check=True,
-                        capture_output=True,
                     )
             except Exception as e:
                 self.logger.warning(f"Could not modify /etc/shells: {e}")
 
         # Change default shell
-        try:
-            self.logger.info(f"Changing default shell to {fish_path}...")
-            subprocess.run(['chsh', '-s', fish_path], check=True)
+        self.logger.info(f"Changing default shell to {fish_path}...")
+        result = self.cmd.run(['chsh', '-s', fish_path], check=False)
+        if result.success:
             self.logger.success("Default shell changed to Fish")
             return True
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Failed to change shell: {e}")
-            return False
+        self.logger.error(f"Failed to change shell: {result.stderr}")
+        return False
 
     def _install_fisher(self) -> bool:
         """Install Fisher plugin manager."""
@@ -200,21 +196,17 @@ class FishTask(BaseTask):
             self.logger.info("[DRY RUN] Would install Fisher")
             return True
 
-        try:
-            # Install Fisher using the official method
-            install_cmd = (
-                "curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | "
-                "source && fisher install jorgebucaran/fisher"
-            )
-            subprocess.run(
-                ['fish', '-c', install_cmd],
-                check=True,
-            )
+        # Install Fisher using the official method
+        install_cmd = (
+            "curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | "
+            "source && fisher install jorgebucaran/fisher"
+        )
+        result = self.cmd.run(['fish', '-c', install_cmd], check=False)
+        if result.success:
             self.logger.success("Fisher installed")
             return True
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Failed to install Fisher: {e}")
-            return False
+        self.logger.error(f"Failed to install Fisher: {result.stderr}")
+        return False
 
     def _install_plugins(self) -> bool:
         """Install Fish plugins via Fisher."""
@@ -229,14 +221,10 @@ class FishTask(BaseTask):
             if plugin == "jorgebucaran/fisher":
                 continue
 
-            try:
-                self.logger.info(f"  Installing {plugin}...")
-                subprocess.run(
-                    ['fish', '-c', f'fisher install {plugin}'],
-                    check=True,
-                )
-            except subprocess.CalledProcessError as e:
-                self.logger.warning(f"Failed to install {plugin}: {e}")
+            self.logger.info(f"  Installing {plugin}...")
+            result = self.cmd.run_quiet(['fish', '-c', f'fisher install {plugin}'])
+            if not result.success:
+                self.logger.warning(f"Failed to install {plugin}: {result.stderr}")
                 # Continue with other plugins
 
         self.logger.success("Plugins installed")
@@ -369,15 +357,8 @@ end
             return True
 
         for abbr, expansion in FISH_ABBREVIATIONS:
-            try:
-                subprocess.run(
-                    ['fish', '-c', f'abbr -a {abbr} {expansion}'],
-                    check=True,
-                    capture_output=True,
-                )
-            except subprocess.CalledProcessError:
-                # Non-fatal - abbreviation might already exist
-                pass
+            # Non-fatal - abbreviation might already exist
+            self.cmd.run_quiet(['fish', '-c', f'abbr -a {abbr} {expansion}'])
 
         self.logger.success("Abbreviations configured")
         return True
@@ -396,16 +377,12 @@ end
             self.logger.info(f"[DRY RUN] Would install plugin: {plugin}")
             return True
 
-        try:
-            subprocess.run(
-                ['fish', '-c', f'fisher install {plugin}'],
-                check=True,
-            )
+        result = self.cmd.run(['fish', '-c', f'fisher install {plugin}'], check=False)
+        if result.success:
             self.logger.success(f"Installed plugin: {plugin}")
             return True
-        except subprocess.CalledProcessError as e:
-            self.logger.error(f"Failed to install {plugin}: {e}")
-            return False
+        self.logger.error(f"Failed to install {plugin}: {result.stderr}")
+        return False
 
     def configure_tide(self) -> bool:
         """
@@ -421,9 +398,7 @@ end
         self.logger.info("Running Tide configuration wizard...")
         self.logger.info("This is interactive - follow the prompts in your terminal")
 
-        try:
-            subprocess.run(['fish', '-c', 'tide configure'], check=True)
-            return True
-        except subprocess.CalledProcessError:
+        result = self.cmd.run_quiet(['fish', '-c', 'tide configure'])
+        if not result.success:
             self.logger.warning("Tide configuration cancelled or failed")
-            return True  # Non-fatal
+        return True  # Non-fatal

@@ -1,7 +1,6 @@
 """Modern CLI tools installation task."""
 
 import shutil
-import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -412,14 +411,9 @@ format = "[$duration]($style) "
         ]
 
         for key, value in git_configs:
-            try:
-                subprocess.run(
-                    ['git', 'config', '--global', key, value],
-                    check=True,
-                    capture_output=True,
-                )
-            except subprocess.CalledProcessError as e:
-                self.logger.warning(f"Failed to set git config {key}: {e}")
+            result = self.cmd.run_quiet(['git', 'config', '--global', key, value])
+            if not result.success:
+                self.logger.warning(f"Failed to set git config {key}: {result.stderr}")
 
         self.logger.success("git-delta configured")
         return True
@@ -436,17 +430,12 @@ format = "[$duration]($style) "
             self.logger.info("[DRY RUN] Would update tldr cache")
             return True
 
-        try:
-            subprocess.run(
-                ['tldr', '--update'],
-                check=True,
-                capture_output=True,
-            )
+        result = self.cmd.run_quiet(['tldr', '--update'])
+        if result.success:
             self.logger.success("tldr cache updated")
-            return True
-        except subprocess.CalledProcessError as e:
-            self.logger.warning(f"Failed to update tldr cache: {e}")
-            return True  # Non-fatal
+        else:
+            self.logger.warning(f"Failed to update tldr cache: {result.stderr}")
+        return True  # Non-fatal
 
     def get_tool_info(self, tool: str) -> Optional[Dict]:
         """

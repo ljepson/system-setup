@@ -1,6 +1,5 @@
 """System settings configuration task."""
 
-import subprocess
 from typing import Dict, List
 
 from system_setup.tasks.base import BaseTask
@@ -68,7 +67,7 @@ class SettingsTask(BaseTask):
     def _apply_linux_settings(self) -> None:
         """Apply Linux settings."""
         # GNOME settings
-        if subprocess.run(['which', 'gsettings'], capture_output=True).returncode == 0:
+        if self.cmd.is_available('gsettings'):
             gnome_settings = [
                 'gsettings set org.gnome.nautilus.preferences show-hidden-files true',
                 'gsettings set org.gnome.desktop.interface show-battery-percentage true',
@@ -93,9 +92,8 @@ class SettingsTask(BaseTask):
 
         self.logger.info(f"Applying {name} settings...")
         for cmd in commands:
-            try:
-                subprocess.run(cmd, shell=True, check=True, capture_output=True)
-            except subprocess.CalledProcessError as e:
+            result = self.cmd.run_quiet(cmd, shell=True)
+            if not result.success:
                 self.logger.warning(f"  Failed: {cmd}")
 
         self.logger.success(f"{name} settings applied")

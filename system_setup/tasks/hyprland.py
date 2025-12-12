@@ -1,7 +1,6 @@
 """Hyprland desktop environment setup task."""
 
 import shutil
-import subprocess
 from pathlib import Path
 from typing import Dict, List
 
@@ -626,14 +625,10 @@ listener {
         # Apply theme via CLI if possible
         theme_path = self.config_dir / 'ags' / 'themes' / theme_file
         if theme_path.exists():
-            try:
-                subprocess.run(
-                    ['hyprpanel', 'ut', str(theme_path)],
-                    check=True,
-                    capture_output=True
-                )
+            result = self.cmd.run_quiet(['hyprpanel', 'ut', str(theme_path)])
+            if result.success:
                 self.logger.success(f"Applied HyprPanel theme: {theme}")
-            except subprocess.CalledProcessError:
+            else:
                 self.logger.warning("Could not apply HyprPanel theme")
         else:
             self.logger.info("HyprPanel theme will be configured through GUI")

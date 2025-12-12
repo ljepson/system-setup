@@ -7,6 +7,7 @@ from system_setup.config import Config
 from system_setup.logger import SetupLogger, get_logger
 from system_setup.platform import Platform
 from system_setup.state import StateManager
+from system_setup.utils.command import CommandRunner
 
 
 class BaseTask(ABC):
@@ -46,6 +47,7 @@ class BaseTask(ABC):
         self.dry_run = dry_run
         self.auto_yes = auto_yes
         self._logger: Optional[SetupLogger] = None
+        self._cmd: Optional[CommandRunner] = None
 
     @property
     def logger(self) -> SetupLogger:
@@ -53,6 +55,13 @@ class BaseTask(ABC):
         if self._logger is None:
             self._logger = get_logger()
         return self._logger
+
+    @property
+    def cmd(self) -> CommandRunner:
+        """Get command runner instance (lazy initialization)."""
+        if self._cmd is None:
+            self._cmd = CommandRunner(dry_run=self.dry_run)
+        return self._cmd
 
     @property
     @abstractmethod

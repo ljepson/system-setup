@@ -84,8 +84,8 @@ Exit Codes:
 
     parser.add_argument(
         '--only',
-        metavar='TASK',
-        help=f'Run only specified task. Available: {", ".join(available_tasks)}',
+        metavar='TASKS',
+        help=f'Comma-separated list of tasks to run. Available: {", ".join(available_tasks)}',
     )
 
     parser.add_argument(
@@ -153,7 +153,7 @@ Exit Codes:
 
 def get_tasks_to_run(
     config: Config,
-    only_task: Optional[str],
+    only_tasks: Optional[str],
     skip_tasks: Optional[str],
     available_tasks: List[str],
 ) -> List[str]:
@@ -162,20 +162,23 @@ def get_tasks_to_run(
 
     Args:
         config: Configuration instance (may have profile skip_tasks)
-        only_task: Single task to run (if specified)
+        only_tasks: Comma-separated tasks to run (if specified)
         skip_tasks: Comma-separated tasks to skip
         available_tasks: All available task names
 
     Returns:
         Ordered list of task names to execute
     """
-    if only_task:
-        if only_task not in available_tasks:
+    if only_tasks:
+        # Parse comma-separated task list
+        requested = [t.strip() for t in only_tasks.split(',')]
+        invalid = [t for t in requested if t not in available_tasks]
+        if invalid:
             raise ValueError(
-                f"Unknown task: {only_task}. "
+                f"Unknown task(s): {', '.join(invalid)}. "
                 f"Available tasks: {', '.join(available_tasks)}"
             )
-        return [only_task]
+        return requested
 
     # Start with configured task order, filtered to available tasks
     task_order = config.task_order
@@ -291,13 +294,16 @@ def main() -> int:
         registry = get_registry()
         available_tasks = registry.list_tasks()
 
-        # Validate --only argument
-        if args.only and args.only not in available_tasks:
-            logger.error(
-                f"Unknown task: {args.only}. "
-                f"Available tasks: {', '.join(available_tasks)}"
-            )
-            return 2
+        # Validate --only argument (basic validation before get_tasks_to_run)
+        if args.only:
+            requested = [t.strip() for t in args.only.split(',')]
+            invalid = [t for t in requested if t not in available_tasks]
+            if invalid:
+                logger.error(
+                    f"Unknown task(s): {', '.join(invalid)}. "
+                    f"Available tasks: {', '.join(available_tasks)}"
+                )
+                return 2
 
         # Show resume status
         if args.resume:
@@ -328,7 +334,7 @@ def main() -> int:
         try:
             tasks_to_run = get_tasks_to_run(
                 config=config,
-                only_task=args.only,
+                only_tasks=args.only,
                 skip_tasks=args.skip,
                 available_tasks=available_tasks,
             )
