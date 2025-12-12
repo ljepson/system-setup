@@ -3,39 +3,23 @@
 import subprocess
 from typing import Dict, List
 
-from system_setup.config import Config
-from system_setup.logger import get_logger
-from system_setup.platform import Platform
-from system_setup.state import StateManager
+from system_setup.tasks.base import BaseTask
 
 
-class SettingsTask:
+class SettingsTask(BaseTask):
     """Manages system settings configuration."""
 
-    def __init__(
-        self,
-        config: Config,
-        state: StateManager,
-        platform: Platform,
-        dry_run: bool = False,
-        auto_yes: bool = False,
-    ) -> None:
-        """
-        Initialize settings task.
+    @property
+    def name(self) -> str:
+        return 'settings'
 
-        Args:
-            config: Configuration instance
-            state: State manager instance
-            platform: Platform instance
-            dry_run: If True, don't actually make changes
-            auto_yes: If True, automatically answer yes to prompts
-        """
-        self.config = config
-        self.state = state
-        self.platform = platform
-        self.dry_run = dry_run
-        self.auto_yes = auto_yes
-        self.logger = get_logger()
+    @property
+    def description(self) -> str:
+        return 'System Settings'
+
+    @property
+    def state_key(self) -> str:
+        return 'settings_applied'
 
     def run(self) -> bool:
         """
@@ -44,11 +28,10 @@ class SettingsTask:
         Returns:
             True if successful
         """
-        if self.state.is_complete('settings_applied'):
-            self.logger.info("Settings already applied (skipping)")
+        if self.skip_if_complete():
             return True
 
-        self.logger.section("System Settings")
+        self.logger.section(self.description)
 
         if self.platform.is_macos:
             self._apply_macos_settings()
@@ -57,7 +40,7 @@ class SettingsTask:
         elif self.platform.is_windows:
             self._apply_windows_settings()
 
-        self.state.mark_complete('settings_applied')
+        self.mark_complete()
         return True
 
     def _apply_macos_settings(self) -> None:

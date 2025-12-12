@@ -3,13 +3,10 @@
 import shutil
 import subprocess
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
-from system_setup.config import Config
-from system_setup.logger import get_logger
 from system_setup.packages.factory import get_package_manager
-from system_setup.platform import Platform
-from system_setup.state import StateManager
+from system_setup.tasks.base import BaseTask
 
 
 # Fish plugins to install via Fisher
@@ -41,7 +38,7 @@ FISH_ABBREVIATIONS = [
 ]
 
 
-class FishTask:
+class FishTask(BaseTask):
     """Manages Fish shell configuration.
 
     Sets up Fish shell with:
@@ -52,31 +49,26 @@ class FishTask:
     - Integration with modern tools (eza, bat, etc.)
     """
 
-    def __init__(
-        self,
-        config: Config,
-        state: StateManager,
-        platform: Platform,
-        dry_run: bool = False,
-        auto_yes: bool = False,
-    ) -> None:
-        """
-        Initialize Fish shell task.
-
-        Args:
-            config: Configuration instance
-            state: State manager instance
-            platform: Platform instance
-            dry_run: If True, don't actually make changes
-            auto_yes: If True, automatically answer yes to prompts
-        """
-        self.config = config
-        self.state = state
-        self.platform = platform
-        self.dry_run = dry_run
-        self.auto_yes = auto_yes
-        self.logger = get_logger()
+    def __init__(self, *args, **kwargs) -> None:
+        """Initialize Fish shell task."""
+        super().__init__(*args, **kwargs)
         self.config_dir = Path.home() / ".config" / "fish"
+
+    @property
+    def name(self) -> str:
+        return 'fish'
+
+    @property
+    def description(self) -> str:
+        return 'Fish Shell Configuration'
+
+    @property
+    def state_key(self) -> str:
+        return 'fish_configured'
+
+    @property
+    def platforms(self) -> list[str]:
+        return ['linux', 'macos']
 
     def run(self) -> bool:
         """
@@ -85,11 +77,10 @@ class FishTask:
         Returns:
             True if successful
         """
-        if self.state.is_complete('fish_configured'):
-            self.logger.info("Fish shell already configured (skipping)")
+        if self.skip_if_complete():
             return True
 
-        self.logger.section("Fish Shell Configuration")
+        self.logger.section(self.description)
 
         # Step 1: Ensure Fish is installed
         if not self._ensure_fish_installed():
@@ -115,7 +106,7 @@ class FishTask:
         if not self._setup_abbreviations():
             return False
 
-        self.state.mark_complete('fish_configured')
+        self.mark_complete()
         self.logger.success("Fish shell configuration complete")
         self.logger.info("Run 'tide configure' to customize your prompt")
         return True

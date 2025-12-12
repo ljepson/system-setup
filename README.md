@@ -23,11 +23,11 @@ Manages packages, dotfiles, system settings, and shell configuration across macO
 pip3 install -r requirements.txt
 
 # Run setup (interactive)
-python3 setup.py
+python3 run.py
 
 # Or make executable and run
-chmod +x setup.py
-./setup.py
+chmod +x run.py
+./run.py
 ```
 
 ## Installation
@@ -48,12 +48,12 @@ system-setup --help
 ### Standalone Script
 
 ```bash
-# Just copy setup.py and system_setup/ directory
+# Just copy run.py and system_setup/ directory
 # Install dependencies
 pip3 install requests pyyaml rich
 
 # Run directly
-python3 setup.py
+python3 run.py
 ```
 
 ## Usage
@@ -62,35 +62,41 @@ python3 setup.py
 
 ```bash
 # Interactive setup (recommended for first run)
-./setup.py
+./run.py
 
 # Unattended mode (auto-yes to all prompts)
-./setup.py --yes
+./run.py --yes
 
 # Preview what would happen
-./setup.py --dry-run
+./run.py --dry-run
 
-# Run only specific section
-./setup.py --only=packages
-./setup.py --only=dotfiles
-./setup.py --only=chezmoi
-./setup.py --only=hyprland
-./setup.py --only=fish
-./setup.py --only=modern-tools
-./setup.py --only=settings
-./setup.py --only=shell
+# Run only specific task
+./run.py --only=packages
+./run.py --only=dotfiles
+./run.py --only=chezmoi
+./run.py --only=hyprland
+./run.py --only=fish
+./run.py --only=modern-tools
+./run.py --only=settings
+./run.py --only=shell
+
+# Skip specific tasks
+./run.py --skip=hyprland,fish
+
+# List all available tasks
+./run.py --list-tasks
 
 # Resume from previous interrupted run
-./setup.py --resume
+./run.py --resume
 
 # Start fresh (clear state)
-./setup.py --reset
+./run.py --reset
 
 # Verbose debugging
-./setup.py --verbose
+./run.py --verbose
 
 # Quiet mode (log to file only)
-./setup.py --quiet
+./run.py --quiet
 ```
 
 ### Configuration
@@ -122,10 +128,10 @@ Override configuration via environment variables:
 
 ```bash
 # Pattern: SYSTEM_SETUP_<KEY>
-SYSTEM_SETUP_DOTFILES_CHECKSUM="abc123..." ./setup.py
+SYSTEM_SETUP_DOTFILES_CHECKSUM="abc123..." ./run.py
 
 # Nested keys use underscores
-SYSTEM_SETUP_SECURITY_PROFILE="strict" ./setup.py
+SYSTEM_SETUP_SECURITY_PROFILE="strict" ./run.py
 ```
 
 ## Configuration Reference
@@ -176,13 +182,13 @@ shell:
 
 ```
 system-setup/
-├── setup.py                 # Main entry point
+├── run.py                   # Main entry point
 ├── system_setup/
 │   ├── __init__.py
 │   ├── cli.py              # Command-line interface
 │   ├── config.py           # Configuration management
 │   ├── state.py            # State persistence
-│   ├── logger.py           # Logging with rich output
+│   ├── logger.py           # Logging with rich output + progress
 │   ├── platform/           # Platform detection
 │   │   ├── base.py
 │   │   ├── detector.py
@@ -198,6 +204,9 @@ system-setup/
 │   │   ├── paru.py         # AUR helper for Arch
 │   │   └── winget.py
 │   ├── tasks/              # Setup tasks
+│   │   ├── base.py         # BaseTask abstract class
+│   │   ├── registry.py     # Task registry for dynamic discovery
+│   │   ├── packages.py     # Package installation task
 │   │   ├── chezmoi.py      # Chezmoi dotfiles management
 │   │   ├── dotfiles.py     # Legacy Google Drive dotfiles
 │   │   ├── fish.py         # Fish shell + Tide prompt
@@ -205,13 +214,9 @@ system-setup/
 │   │   ├── modern_tools.py # Modern CLI tools (eza, bat, etc.)
 │   │   ├── settings.py
 │   │   └── shell.py
-│   ├── templates/          # Configuration templates
-│   │   ├── hyprland/
-│   │   ├── fish/
-│   │   ├── ghostty/
-│   │   └── starship/
 │   └── utils/              # Utilities
 │       ├── checksum.py
+│       ├── command.py      # Centralized command runner
 │       └── download.py
 ├── tests/                   # Test suite
 ├── pyproject.toml          # Package metadata

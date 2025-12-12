@@ -3,46 +3,57 @@
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from system_setup import __version__
 from system_setup.config import Config
 from system_setup.logger import get_logger, setup_logger
-from system_setup.packages import get_package_manager
 from system_setup.platform import detect_platform
 from system_setup.state import StateManager
-from system_setup.tasks import ChezmoiTask, DotfilesTask, SettingsTask, ShellTask
+from system_setup.tasks.registry import get_registry
 
 
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser."""
+    # Get available tasks for help text
+    registry = get_registry()
+    available_tasks = registry.list_tasks()
+
     parser = argparse.ArgumentParser(
         description="Cross-platform system setup and configuration tool",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog=f"""
 Examples:
-  %(prog)s                          # Interactive setup with all sections
+  %(prog)s                          # Interactive setup with all tasks
   %(prog)s --yes                    # Unattended setup (auto-yes to prompts)
   %(prog)s --only=packages          # Only install packages
+  %(prog)s --skip=hyprland,fish     # Skip specific tasks
+  %(prog)s --profile=server         # Use server profile
   %(prog)s --dry-run                # Preview changes without applying
   %(prog)s --resume                 # Resume from previous interrupted run
-  %(prog)s --reset                  # Clear state and start fresh
+  %(prog)s --list-tasks             # List all available tasks
+  %(prog)s --list-profiles          # List available profiles
+
+Available Tasks:
+  {', '.join(available_tasks)}
+
+Available Profiles:
+  server, desktop, developer, minimal
+  (Use --list-profiles for details)
 
 Configuration:
-  Create ~/.system_setup.yaml or ./system_setup.yaml with settings:
+  Create ~/.system_setup.yaml to override defaults:
 
   packages:
-    additional_packages:
+    additional:
       - docker
       - terraform
 
-  security:
-    profile: normal  # normal, strict, reduced
-
-  dotfiles:
-    gdrive_id: YOUR_GOOGLE_DRIVE_FILE_ID
-    checksum: YOUR_SHA256_HASH  # or 'skip'
-    checksum_required: false
+  # Override default packages for a platform
+  packages:
+    macos:
+      formulae:
+        - my-custom-formula
 
 Exit Codes:
   0: Success
@@ -73,8 +84,32 @@ Exit Codes:
 
     parser.add_argument(
         '--only',
-        choices=['packages', 'settings', 'dotfiles', 'shell'],
-        help='Run only specified section',
+        metavar='TASK',
+        help=f'Run only specified task. Available: {", ".join(available_tasks)}',
+    )
+
+    parser.add_argument(
+        '--skip',
+        metavar='TASKS',
+        help='Comma-separated list of tasks to skip',
+    )
+
+    parser.add_argument(
+        '--profile',
+        metavar='NAME',
+        help='Use a predefined profile (server, desktop, developer, minimal)',
+    )
+
+    parser.add_argument(
+        '--list-tasks',
+        action='store_true',
+        help='List all available tasks with descriptions',
+    )
+
+    parser.add_argument(
+        '--list-profiles',
+        action='store_true',
+        help='List available profiles with descriptions',
     )
 
     parser.add_argument(
@@ -92,7 +127,7 @@ Exit Codes:
     parser.add_argument(
         '--resume',
         action='store_true',
-        help=f'Resume from previous state (uses ~/.system_setup_state)',
+        help='Resume from previous state (uses ~/.system_setup_state)',
     )
 
     parser.add_argument(
@@ -116,94 +151,96 @@ Exit Codes:
     return parser
 
 
-def should_run_section(section: str, only_section: Optional[str]) -> bool:
-    """Check if a section should be run."""
-    if only_section is None:
-        return True
-    return only_section == section
-
-
-def install_packages(
-    platform,
+def get_tasks_to_run(
     config: Config,
-    state: StateManager,
-    dry_run: bool,
-    auto_yes: bool,
-) -> bool:
-    """Install packages for the platform."""
-    logger = get_logger()
+    only_task: Optional[str],
+    skip_tasks: Optional[str],
+    available_tasks: List[str],
+) -> List[str]:
+    """
+    Determine which tasks to run based on CLI arguments and profile.
 
-    if state.is_complete('packages_installed'):
-        logger.info("Packages already installed (skipping)")
-        return True
+    Args:
+        config: Configuration instance (may have profile skip_tasks)
+        only_task: Single task to run (if specified)
+        skip_tasks: Comma-separated tasks to skip
+        available_tasks: All available task names
 
-    # Get package manager
-    pkg_manager = get_package_manager(platform, dry_run=dry_run)
-    if not pkg_manager:
-        logger.error("No suitable package manager found")
-        return False
+    Returns:
+        Ordered list of task names to execute
+    """
+    if only_task:
+        if only_task not in available_tasks:
+            raise ValueError(
+                f"Unknown task: {only_task}. "
+                f"Available tasks: {', '.join(available_tasks)}"
+            )
+        return [only_task]
 
-    logger.info(f"Using package manager: {pkg_manager.name}")
+    # Start with configured task order, filtered to available tasks
+    task_order = config.task_order
+    tasks = [t for t in task_order if t in available_tasks]
 
-    # Update package manager
-    logger.info("Updating package manager...")
-    if not pkg_manager.update():
-        logger.warning("Package manager update failed (continuing anyway)")
+    # Add any registered tasks not in order
+    for task in available_tasks:
+        if task not in tasks:
+            tasks.append(task)
 
-    # Define package lists by platform
-    packages = []
-    if platform.is_macos:
-        packages = [
-            'bat', 'eza', 'fnm', 'fzf', 'gdown', 'htop', 'neovim',
-            'pyright', 'ripgrep', 'svn', 'tealdeer', 'wget', 'zoxide', 'zsh',
-            # Casks
-            'visual-studio-code.cask', 'alfred.cask', 'iterm2.cask',
-            'dropbox.cask', 'cloudflare-warp.cask',
-        ]
-    elif platform.is_linux:
-        if platform.distro == 'debian':
-            packages = [
-                'bat', 'curl', 'fzf', 'git', 'htop', 'neovim',
-                'python3-pip', 'ripgrep', 'wget', 'zsh',
-            ]
-        elif platform.distro == 'arch':
-            packages = [
-                'bat', 'curl', 'eza', 'fnm', 'fzf', 'git', 'htop',
-                'neovim', 'python-pip', 'ripgrep', 'wget', 'zsh',
-            ]
-    elif platform.is_windows:
-        packages = [
-            'Git.Git', 'Microsoft.VisualStudioCode',
-            'Microsoft.PowerShell', 'JanDeDobbeleer.OhMyPosh',
-        ]
+    # Build skip set from profile and CLI
+    skip_set = set(config.profile_skip_tasks)
+    if skip_tasks:
+        skip_set.update(t.strip() for t in skip_tasks.split(','))
 
-    # Add additional packages from config
-    packages.extend(config.additional_packages)
+    # Remove skipped tasks
+    tasks = [t for t in tasks if t not in skip_set]
 
-    if not packages:
-        logger.warning("No packages defined for this platform")
-        state.mark_complete('packages_installed')
-        return True
+    return tasks
 
-    # Ask for confirmation
-    if not auto_yes:
-        logger.info(f"Packages to install: {', '.join(packages)}")
-        response = input("Install packages? (y/N): ")
-        if response.lower() not in ('y', 'yes'):
-            logger.info("Skipping package installation")
-            return True
 
-    # Install packages
-    logger.info(f"Installing {len(packages)} packages...")
-    if pkg_manager.install(packages):
-        logger.success(f"Installed {len(packages)} packages")
-        for pkg in packages:
-            logger.track_package(pkg)
-        state.mark_complete('packages_installed')
-        return True
+def list_tasks(config: Config, state: StateManager, platform) -> None:
+    """Display list of available tasks with descriptions."""
+    registry = get_registry()
+    print("\nAvailable Tasks:")
+    print("=" * 70)
+
+    for name in registry.list_tasks():
+        info = registry.get_task_info(name, config, state, platform)
+        if info:
+            status = "✓" if info['complete'] else " "
+            print(f"  [{status}] {name:15} - {info['description']}")
+            if not info['supported']:
+                print(f"       └── Not supported on this platform")
+            if info['depends_on']:
+                print(f"       └── Depends on: {', '.join(info['depends_on'])}")
+
+    print()
+    print("Legend: [✓] = completed")
+    print()
+
+
+def list_profiles(config: Config) -> None:
+    """Display available profiles with descriptions."""
+    profiles = config.list_profiles()
+
+    print("\nAvailable Profiles:")
+    print("=" * 70)
+
+    if not profiles:
+        print("  No profiles defined")
     else:
-        logger.error("Package installation failed")
-        return False
+        active = config.active_profile
+        for name, description in profiles.items():
+            marker = " *" if name == active else ""
+            print(f"  {name:15} - {description}{marker}")
+
+    print()
+    if config.active_profile:
+        print(f"Active profile: {config.active_profile}")
+        if config.profile_skip_tasks:
+            print(f"Skipped tasks: {', '.join(config.profile_skip_tasks)}")
+    print()
+    print("Usage: ./run.py --profile=server")
+    print()
 
 
 def main() -> int:
@@ -211,7 +248,7 @@ def main() -> int:
     parser = create_parser()
     args = parser.parse_args()
 
-    # Handle --reset flag
+    # Handle --reset flag (before logger init)
     if args.reset:
         state = StateManager()
         state.clear()
@@ -227,11 +264,40 @@ def main() -> int:
     logger = get_logger()
 
     try:
-        # Load configuration
-        config = Config(config_path=args.config)
+        # Load configuration with profile
+        try:
+            config = Config(config_path=args.config, profile=args.profile)
+        except ValueError as e:
+            logger.error(str(e))
+            return 2
 
         # Initialize state manager
         state = StateManager()
+
+        # Detect platform
+        platform = detect_platform()
+
+        # Handle --list-profiles
+        if args.list_profiles:
+            list_profiles(config)
+            return 0
+
+        # Handle --list-tasks
+        if args.list_tasks:
+            list_tasks(config, state, platform)
+            return 0
+
+        # Get registry
+        registry = get_registry()
+        available_tasks = registry.list_tasks()
+
+        # Validate --only argument
+        if args.only and args.only not in available_tasks:
+            logger.error(
+                f"Unknown task: {args.only}. "
+                f"Available tasks: {', '.join(available_tasks)}"
+            )
+            return 2
 
         # Show resume status
         if args.resume:
@@ -243,9 +309,13 @@ def main() -> int:
             else:
                 logger.info("No previous state found")
 
-        # Detect platform
-        platform = detect_platform()
         logger.info(f"Detected platform: {platform}")
+
+        # Show profile info
+        if config.active_profile:
+            logger.info(f"Using profile: {config.active_profile}")
+            if config.profile_skip_tasks:
+                logger.info(f"Profile skips: {', '.join(config.profile_skip_tasks)}")
 
         # Show dry-run mode
         if args.dry_run:
@@ -254,49 +324,44 @@ def main() -> int:
         if args.auto_yes:
             logger.info("AUTO YES MODE - All prompts will be automatically accepted")
 
-        # Run sections
+        # Determine tasks to run
+        try:
+            tasks_to_run = get_tasks_to_run(
+                config=config,
+                only_task=args.only,
+                skip_tasks=args.skip,
+                available_tasks=available_tasks,
+            )
+        except ValueError as e:
+            logger.error(str(e))
+            return 2
+
+        logger.info(f"Tasks to run: {', '.join(tasks_to_run)}")
+
+        # Run tasks
         success = True
-
-        # Packages
-        if should_run_section('packages', args.only):
-            logger.section("Package Installation")
-            if not install_packages(platform, config, state, args.dry_run, args.auto_yes):
-                success = False
-
-        # Dotfiles
-        if should_run_section('dotfiles', args.only):
-            chezmoi_task = ChezmoiTask(
+        for task_name in tasks_to_run:
+            task = registry.create_task(
+                name=task_name,
                 config=config,
                 state=state,
                 platform=platform,
                 dry_run=args.dry_run,
                 auto_yes=args.auto_yes,
             )
-            if not chezmoi_task.run():
-                success = False
 
-        # Settings
-        if should_run_section('settings', args.only):
-            settings_task = SettingsTask(
-                config=config,
-                state=state,
-                platform=platform,
-                dry_run=args.dry_run,
-                auto_yes=args.auto_yes,
-            )
-            if not settings_task.run():
-                success = False
+            if task is None:
+                logger.warning(f"Could not create task: {task_name}")
+                continue
 
-        # Shell
-        if should_run_section('shell', args.only):
-            shell_task = ShellTask(
-                config=config,
-                state=state,
-                platform=platform,
-                dry_run=args.dry_run,
-                auto_yes=args.auto_yes,
-            )
-            if not shell_task.run():
+            # Check platform support
+            if hasattr(task, 'is_supported') and not task.is_supported():
+                logger.info(f"Skipping {task_name}: not supported on this platform")
+                continue
+
+            # Run task (tasks handle their own section headers)
+            if not task.run():
+                logger.error(f"Task failed: {task_name}")
                 success = False
 
         # Show summary

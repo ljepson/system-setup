@@ -5,11 +5,8 @@ import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from system_setup.config import Config
-from system_setup.logger import get_logger
 from system_setup.packages.factory import get_package_manager
-from system_setup.platform import Platform
-from system_setup.state import StateManager
+from system_setup.tasks.base import BaseTask
 
 
 # Core modern CLI tools that replace traditional ones
@@ -130,37 +127,24 @@ AUR_PACKAGES = [
 ]
 
 
-class ModernToolsTask:
+class ModernToolsTask(BaseTask):
     """Installs modern CLI tools.
 
     Replaces traditional Unix tools with modern, Rust-based alternatives
     that are faster and more user-friendly.
     """
 
-    def __init__(
-        self,
-        config: Config,
-        state: StateManager,
-        platform: Platform,
-        dry_run: bool = False,
-        auto_yes: bool = False,
-    ) -> None:
-        """
-        Initialize modern tools task.
+    @property
+    def name(self) -> str:
+        return 'modern-tools'
 
-        Args:
-            config: Configuration instance
-            state: State manager instance
-            platform: Platform instance
-            dry_run: If True, don't actually make changes
-            auto_yes: If True, automatically answer yes to prompts
-        """
-        self.config = config
-        self.state = state
-        self.platform = platform
-        self.dry_run = dry_run
-        self.auto_yes = auto_yes
-        self.logger = get_logger()
+    @property
+    def description(self) -> str:
+        return 'Modern CLI Tools Installation'
+
+    @property
+    def state_key(self) -> str:
+        return 'modern_tools_installed'
 
     def run(self) -> bool:
         """
@@ -169,11 +153,10 @@ class ModernToolsTask:
         Returns:
             True if successful
         """
-        if self.state.is_complete('modern_tools_installed'):
-            self.logger.info("Modern tools already installed (skipping)")
+        if self.skip_if_complete():
             return True
 
-        self.logger.section("Modern CLI Tools Installation")
+        self.logger.section(self.description)
 
         # Step 1: Install core modern tools
         if not self._install_core_tools():
@@ -199,7 +182,7 @@ class ModernToolsTask:
         if not self._update_tldr():
             return False
 
-        self.state.mark_complete('modern_tools_installed')
+        self.mark_complete()
         self.logger.success("Modern tools installation complete")
         return True
 

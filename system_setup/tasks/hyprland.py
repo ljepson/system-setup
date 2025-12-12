@@ -1,16 +1,12 @@
 """Hyprland desktop environment setup task."""
 
-import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
-from system_setup.config import Config
-from system_setup.logger import get_logger
 from system_setup.packages.factory import get_package_manager, ensure_paru_installed
-from system_setup.platform import Platform
-from system_setup.state import StateManager
+from system_setup.tasks.base import BaseTask
 
 
 # Package groups for Hyprland ecosystem
@@ -61,35 +57,30 @@ FILE_MANAGER_PACKAGES = [
 ]
 
 
-class HyprlandTask:
+class HyprlandTask(BaseTask):
     """Sets up complete Hyprland desktop environment."""
 
-    def __init__(
-        self,
-        config: Config,
-        state: StateManager,
-        platform: Platform,
-        dry_run: bool = False,
-        auto_yes: bool = False,
-    ) -> None:
-        """
-        Initialize Hyprland setup task.
-
-        Args:
-            config: Configuration instance
-            state: State manager instance
-            platform: Platform instance
-            dry_run: If True, don't actually make changes
-            auto_yes: If True, automatically answer yes to prompts
-        """
-        self.config = config
-        self.state = state
-        self.platform = platform
-        self.dry_run = dry_run
-        self.auto_yes = auto_yes
-        self.logger = get_logger()
+    def __init__(self, *args, **kwargs) -> None:
+        """Initialize Hyprland setup task."""
+        super().__init__(*args, **kwargs)
         self.home = Path.home()
         self.config_dir = self.home / '.config'
+
+    @property
+    def name(self) -> str:
+        return 'hyprland'
+
+    @property
+    def description(self) -> str:
+        return 'Hyprland Desktop Environment Setup'
+
+    @property
+    def state_key(self) -> str:
+        return 'hyprland_setup'
+
+    @property
+    def platforms(self) -> list[str]:
+        return ['linux']
 
     def run(self) -> bool:
         """
@@ -98,16 +89,14 @@ class HyprlandTask:
         Returns:
             True if successful
         """
-        if not self.platform.is_linux:
+        if not self.is_supported():
             self.logger.info("Hyprland is only supported on Linux")
             return True
 
-        self.logger.section("Hyprland Desktop Environment Setup")
-
-        # Check if already complete
-        if self.state.is_complete('hyprland_setup'):
-            self.logger.info("Hyprland already configured (skipping)")
+        if self.skip_if_complete():
             return True
+
+        self.logger.section(self.description)
 
         if not self.auto_yes:
             response = input("Set up Hyprland desktop environment? (y/N): ")
@@ -136,7 +125,7 @@ class HyprlandTask:
 
             self.state.mark_complete(step_name)
 
-        self.state.mark_complete('hyprland_setup')
+        self.mark_complete()
         self.logger.success("Hyprland setup complete!")
         return True
 
@@ -692,7 +681,7 @@ listener {
 
         script_path = bin_dir / 'show-keybinds'
 
-        script_content = '''#!/bin/bash
+        script_content = r'''#!/bin/bash
 # Show keybindings in a popup using walker
 
 keybinds="=== APPS ===

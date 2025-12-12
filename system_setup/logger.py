@@ -2,12 +2,14 @@
 
 import logging
 import sys
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Iterator, Optional
 
 from rich.console import Console
 from rich.logging import RichHandler
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.theme import Theme
 
 
@@ -124,6 +126,82 @@ class SetupLogger:
     def track_setting(self, setting: str) -> None:
         """Track applied setting for summary."""
         self.settings_applied.append(setting)
+
+    @contextmanager
+    def progress_spinner(self, message: str) -> Iterator[None]:
+        """
+        Show a spinner while a long-running operation is in progress.
+
+        Usage:
+            with logger.progress_spinner("Installing packages..."):
+                install_packages()
+
+        Args:
+            message: Message to display with spinner
+        """
+        if self.quiet:
+            yield
+            return
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=self.console,
+            transient=True,
+        ) as progress:
+            progress.add_task(description=message, total=None)
+            yield
+
+    @contextmanager
+    def progress_bar(
+        self,
+        description: str,
+        total: int,
+    ) -> Iterator[Progress]:
+        """
+        Show a progress bar for operations with known length.
+
+        Usage:
+            with logger.progress_bar("Installing packages", len(packages)) as progress:
+                task = progress.add_task("", total=len(packages))
+                for pkg in packages:
+                    install(pkg)
+                    progress.update(task, advance=1)
+
+        Args:
+            description: Description to show
+            total: Total number of items
+
+        Yields:
+            Rich Progress object
+        """
+        if self.quiet:
+            # Yield a dummy progress that does nothing
+            yield None
+            return
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=self.console,
+            transient=True,
+        ) as progress:
+            task_id = progress.add_task(description, total=total)
+            # Attach task_id to progress for convenience
+            progress._task_id = task_id
+            yield progress
+
+    def status(self, message: str):
+        """
+        Return a status context manager for showing progress.
+
+        Usage:
+            with logger.status("Processing..."):
+                do_work()
+        """
+        return self.console.status(message)
 
     def show_summary(self) -> None:
         """Display summary report."""

@@ -47,6 +47,7 @@ class TestChezmoiTask:
     def test_chezmoi_task_initialization(self):
         """Test ChezmoiTask initializes correctly."""
         from system_setup.tasks.chezmoi import ChezmoiTask
+        from system_setup.tasks.base import BaseTask
 
         mock_config = MagicMock()
         mock_state = MagicMock()
@@ -60,7 +61,11 @@ class TestChezmoiTask:
         )
 
         assert task.dry_run is True
-        assert task.chezmoi_path == Path.home() / ".local" / "share" / "chezmoi"
+        assert task.chezmoi_source_path == Path.home() / ".local" / "share" / "chezmoi"
+        assert isinstance(task, BaseTask)
+        assert task.name == 'chezmoi'
+        assert task.description == 'Chezmoi Dotfiles Management'
+        assert task.state_key == 'chezmoi_configured'
 
     def test_chezmoi_skips_if_complete(self):
         """Test ChezmoiTask skips if already complete."""
@@ -79,7 +84,8 @@ class TestChezmoiTask:
 
         result = task.run()
         assert result is True
-        mock_state.is_complete.assert_called_with('chezmoi_configured')
+        # BaseTask.skip_if_complete() calls state.is_complete with state_key
+        mock_state.is_complete.assert_called_with(task.state_key)
 
 
 class TestFishTask:
@@ -193,6 +199,7 @@ class TestHyprlandTask:
     def test_hyprland_task_initialization(self):
         """Test HyprlandTask initializes correctly."""
         from system_setup.tasks.hyprland import HyprlandTask
+        from system_setup.tasks.base import BaseTask
 
         mock_config = MagicMock()
         mock_state = MagicMock()
@@ -206,7 +213,10 @@ class TestHyprlandTask:
         )
 
         assert task.dry_run is True
-        assert task.hypr_config_dir == Path.home() / ".config" / "hypr"
+        assert task.config_dir == Path.home() / ".config"
+        assert isinstance(task, BaseTask)
+        assert task.name == 'hyprland'
+        assert task.platforms == ['linux']
 
 
 class TestConfigExtensions:
@@ -241,7 +251,8 @@ class TestConfigExtensions:
 
         assert config.fish_enabled is True
         assert config.fish_set_default is True
-        assert config.fish_plugins == []
+        # fish_plugins now comes from defaults.yaml which gets loaded
+        assert isinstance(config.fish_plugins, list)
 
     def test_config_modern_tools_properties(self):
         """Test modern tools-related config properties."""

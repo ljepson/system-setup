@@ -1,0 +1,310 @@
+# System Setup Defaults
+# These are merged with user configuration (user config takes precedence)
+# To override, create ~/.system_setup.yaml or ./system_setup.yaml
+
+# =============================================================================
+# PROFILES
+# =============================================================================
+# Profiles allow quick configuration for different use cases
+# Use with: ./run.py --profile=server
+
+profiles:
+  # Minimal server setup - no GUI, no desktop tools
+  server:
+    description: "Minimal server setup (SSH-only, no GUI)"
+    skip_tasks:
+      - hyprland
+      - fish
+      - modern-tools
+    packages:
+      linux:
+        common:
+          - curl
+          - git
+          - htop
+          - neovim
+          - ripgrep
+          - tmux
+          - wget
+          - zsh
+
+  # Desktop workstation - full setup
+  desktop:
+    description: "Full desktop workstation setup"
+    skip_tasks: []
+    # Uses default packages
+
+  # Developer setup - focus on dev tools
+  developer:
+    description: "Developer-focused setup"
+    skip_tasks:
+      - hyprland
+    packages:
+      additional:
+        - docker
+        - kubectl
+        - terraform
+
+  # Minimal - bare essentials only
+  minimal:
+    description: "Bare essentials only"
+    skip_tasks:
+      - hyprland
+      - fish
+      - modern-tools
+      - settings
+    packages:
+      linux:
+        common:
+          - curl
+          - git
+          - vim
+          - wget
+
+# =============================================================================
+# DEFAULT PACKAGES BY PLATFORM
+# =============================================================================
+
+packages:
+  # macOS packages (Homebrew)
+  macos:
+    formulae:
+      - bat
+      - eza
+      - fd
+      - fnm
+      - fzf
+      - gdown
+      - git-delta
+      - htop
+      - jq
+      - neovim
+      - pyright
+      - ripgrep
+      - svn
+      - tealdeer
+      - wget
+      - yq
+      - zoxide
+      - zsh
+    casks:
+      - alfred
+      - cloudflare-warp
+      - dropbox
+      - iterm2
+      - visual-studio-code
+
+  # Linux packages by distribution
+  linux:
+    # Shared across all distros (installed first)
+    common:
+      - curl
+      - git
+      - htop
+      - wget
+
+    # Debian/Ubuntu (apt)
+    debian:
+      - bat
+      - fd-find
+      - fzf
+      - neovim
+      - python3-pip
+      - ripgrep
+      - zsh
+
+    # Arch Linux (pacman/paru)
+    arch:
+      - bat
+      - eza
+      - fd
+      - fnm
+      - fzf
+      - git-delta
+      - jq
+      - lazygit
+      - neovim
+      - python-pip
+      - ripgrep
+      - tealdeer
+      - yq
+      - zoxide
+      - zsh
+
+    # Fedora (dnf)
+    fedora:
+      - bat
+      - fd-find
+      - fzf
+      - neovim
+      - python3-pip
+      - ripgrep
+      - zsh
+
+  # Windows packages (winget)
+  windows:
+    winget:
+      - Git.Git
+      - JanDeDobbeleer.OhMyPosh
+      - Microsoft.PowerShell
+      - Microsoft.VisualStudioCode
+      - Microsoft.WindowsTerminal
+
+# =============================================================================
+# MODERN CLI TOOLS
+# =============================================================================
+# These replace traditional Unix tools with modern alternatives
+
+modern_tools:
+  # Core replacements
+  core:
+    - name: eza
+      replaces: ls
+      package: eza
+    - name: bat
+      replaces: cat
+      package: bat
+    - name: fd
+      replaces: find
+      package: fd
+    - name: ripgrep
+      replaces: grep
+      package: ripgrep
+    - name: sd
+      replaces: sed
+      package: sd
+    - name: dust
+      replaces: du
+      package: dust
+    - name: duf
+      replaces: df
+      package: duf
+    - name: procs
+      replaces: ps
+      package: procs
+    - name: bottom
+      replaces: top
+      package: bottom
+    - name: btop
+      replaces: htop
+      package: btop
+    - name: zoxide
+      replaces: cd
+      package: zoxide
+    - name: delta
+      replaces: diff
+      package: git-delta
+
+  # Development tools
+  dev:
+    - name: mise
+      description: "Polyglot version manager"
+      package: mise
+    - name: starship
+      description: "Cross-shell prompt"
+      package: starship
+    - name: lazygit
+      description: "Terminal UI for git"
+      package: lazygit
+    - name: lazydocker
+      description: "Terminal UI for docker"
+      package: lazydocker
+      aur_only: true
+    - name: tokei
+      description: "Count lines of code"
+      package: tokei
+    - name: hyperfine
+      description: "Benchmarking tool"
+      package: hyperfine
+    - name: tealdeer
+      description: "Fast tldr client"
+      package: tealdeer
+
+# =============================================================================
+# FISH SHELL
+# =============================================================================
+
+fish:
+  plugins:
+    - jorgebucaran/fisher
+    - IlanCosman/tide@v6
+    - PatrickF1/fzf.fish
+    - jethrokuan/z
+
+  abbreviations:
+    g: git
+    ga: git add
+    gc: git commit
+    gco: git checkout
+    gd: git diff
+    gl: git log --oneline
+    gp: git push
+    gpl: git pull
+    gs: git status
+    lg: lazygit
+    v: hx
+    cat: bat
+    ls: eza
+    ll: eza -la
+    la: eza -a
+    tree: eza --tree
+
+# =============================================================================
+# HYPRLAND
+# =============================================================================
+
+hyprland:
+  packages:
+    core:
+      - hyprland
+      - hyprlock
+      - hypridle
+      - hyprshot
+      - xdg-desktop-portal-hyprland
+    utils:
+      - brightnessctl
+      - cliphist
+      - grim
+      - satty
+      - slurp
+      - swww
+      - waypaper
+      - wf-recorder
+      - wl-clipboard
+    aur:
+      - ags-hyprpanel-git
+      - walker
+
+  themes:
+    catppuccin-mocha:
+      active_border: "rgba(cba6f7ee) rgba(89b4faee) 45deg"
+      inactive_border: "rgba(585b70aa)"
+    rose-pine:
+      active_border: "rgba(c4a7e7ee) rgba(ebbcbaee) 45deg"
+      inactive_border: "rgba(6e6a86aa)"
+    nord:
+      active_border: "rgba(88c0d0ee) rgba(81a1c1ee) 45deg"
+      inactive_border: "rgba(4c566aaa)"
+
+# =============================================================================
+# TASK DEFAULTS
+# =============================================================================
+
+tasks:
+  # Default execution order
+  order:
+    - packages
+    - chezmoi
+    - modern-tools
+    - fish
+    - hyprland
+    - settings
+    - shell
+
+  # Platform restrictions
+  platforms:
+    hyprland:
+      - linux
+    fish:
+      - linux
+      - macos

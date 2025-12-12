@@ -1,19 +1,15 @@
 """Chezmoi dotfiles management task."""
 
-import os
 import shutil
 import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from system_setup.config import Config
-from system_setup.logger import get_logger
 from system_setup.packages.factory import get_package_manager
-from system_setup.platform import Platform
-from system_setup.state import StateManager
+from system_setup.tasks.base import BaseTask
 
 
-class ChezmoiTask:
+class ChezmoiTask(BaseTask):
     """Manages dotfiles using chezmoi.
 
     Chezmoi is a modern dotfiles manager that supports:
@@ -23,32 +19,23 @@ class ChezmoiTask:
     - Multi-machine support with different configurations
     """
 
-    def __init__(
-        self,
-        config: Config,
-        state: StateManager,
-        platform: Platform,
-        dry_run: bool = False,
-        auto_yes: bool = False,
-    ) -> None:
-        """
-        Initialize chezmoi task.
-
-        Args:
-            config: Configuration instance
-            state: State manager instance
-            platform: Platform instance
-            dry_run: If True, don't actually make changes
-            auto_yes: If True, automatically answer yes to prompts
-        """
-        self.config = config
-        self.state = state
-        self.platform = platform
-        self.dry_run = dry_run
-        self.auto_yes = auto_yes
-        self.logger = get_logger()
+    def __init__(self, *args, **kwargs) -> None:
+        """Initialize chezmoi task."""
+        super().__init__(*args, **kwargs)
         self.chezmoi_source_path = Path.home() / ".local" / "share" / "chezmoi"
         self._chezmoi_bin: Optional[str] = None
+
+    @property
+    def name(self) -> str:
+        return 'chezmoi'
+
+    @property
+    def description(self) -> str:
+        return 'Chezmoi Dotfiles Management'
+
+    @property
+    def state_key(self) -> str:
+        return 'chezmoi_configured'
 
     def _get_chezmoi_cmd(self) -> str:
         """Get the chezmoi command, checking common install locations."""
@@ -82,11 +69,10 @@ class ChezmoiTask:
         Returns:
             True if successful
         """
-        if self.state.is_complete('chezmoi_configured'):
-            self.logger.info("Chezmoi already configured (skipping)")
+        if self.skip_if_complete():
             return True
 
-        self.logger.section("Chezmoi Dotfiles Management")
+        self.logger.section(self.description)
 
         # Step 1: Ensure chezmoi is installed
         if not self._ensure_chezmoi_installed():
@@ -100,7 +86,7 @@ class ChezmoiTask:
         if not self._apply_dotfiles():
             return False
 
-        self.state.mark_complete('chezmoi_configured')
+        self.mark_complete()
         self.logger.success("Chezmoi configuration complete")
         return True
 

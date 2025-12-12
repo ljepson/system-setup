@@ -3,42 +3,32 @@
 import shutil
 import tarfile
 from pathlib import Path
-from typing import Optional
 
-from system_setup.config import Config
-from system_setup.logger import get_logger
-from system_setup.state import StateManager
+from system_setup.tasks.base import BaseTask
 from system_setup.utils.checksum import verify_sha256
 from system_setup.utils.download import download_from_gdrive, install_gdown
 
 
-class DotfilesTask:
+class DotfilesTask(BaseTask):
     """Manages dotfiles download and installation."""
 
-    def __init__(
-        self,
-        config: Config,
-        state: StateManager,
-        dry_run: bool = False,
-        auto_yes: bool = False,
-    ) -> None:
-        """
-        Initialize dotfiles task.
-
-        Args:
-            config: Configuration instance
-            state: State manager instance
-            dry_run: If True, don't actually make changes
-            auto_yes: If True, automatically answer yes to prompts
-        """
-        self.config = config
-        self.state = state
-        self.dry_run = dry_run
-        self.auto_yes = auto_yes
-        self.logger = get_logger()
-
+    def __init__(self, *args, **kwargs) -> None:
+        """Initialize dotfiles task."""
+        super().__init__(*args, **kwargs)
         self.temp_archive = Path("/tmp/dotfiles.tar.gz")
         self.temp_extract = Path("/tmp/dotfiles")
+
+    @property
+    def name(self) -> str:
+        return 'dotfiles'
+
+    @property
+    def description(self) -> str:
+        return 'Dotfiles Management'
+
+    @property
+    def state_key(self) -> str:
+        return 'dotfiles_installed'
 
     def run(self) -> bool:
         """
@@ -47,11 +37,10 @@ class DotfilesTask:
         Returns:
             True if successful
         """
-        if self.state.is_complete('dotfiles_installed'):
-            self.logger.info("Dotfiles already installed (skipping)")
+        if self.skip_if_complete():
             return True
 
-        self.logger.section("Dotfiles Management")
+        self.logger.section(self.description)
 
         # Step 1: Download (if needed)
         if not self._download_dotfiles():
@@ -68,7 +57,7 @@ class DotfilesTask:
         # Step 4: Cleanup
         self._cleanup()
 
-        self.state.mark_complete('dotfiles_installed')
+        self.mark_complete()
         self.logger.success("Dotfiles management complete")
         return True
 

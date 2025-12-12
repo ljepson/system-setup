@@ -3,40 +3,24 @@
 import subprocess
 from pathlib import Path
 
-from system_setup.config import Config
-from system_setup.logger import get_logger
-from system_setup.platform import Platform
 from system_setup.platform.macos import MacOSPlatform
-from system_setup.state import StateManager
+from system_setup.tasks.base import BaseTask
 
 
-class ShellTask:
+class ShellTask(BaseTask):
     """Manages shell configuration."""
 
-    def __init__(
-        self,
-        config: Config,
-        state: StateManager,
-        platform: Platform,
-        dry_run: bool = False,
-        auto_yes: bool = False,
-    ) -> None:
-        """
-        Initialize shell task.
+    @property
+    def name(self) -> str:
+        return 'shell'
 
-        Args:
-            config: Configuration instance
-            state: State manager instance
-            platform: Platform instance
-            dry_run: If True, don't actually make changes
-            auto_yes: If True, automatically answer yes to prompts
-        """
-        self.config = config
-        self.state = state
-        self.platform = platform
-        self.dry_run = dry_run
-        self.auto_yes = auto_yes
-        self.logger = get_logger()
+    @property
+    def description(self) -> str:
+        return 'Shell Configuration'
+
+    @property
+    def state_key(self) -> str:
+        return 'shell_configured'
 
     def run(self) -> bool:
         """
@@ -45,11 +29,10 @@ class ShellTask:
         Returns:
             True if successful
         """
-        if self.state.is_complete('shell_configured'):
-            self.logger.info("Shell already configured (skipping)")
+        if self.skip_if_complete():
             return True
 
-        self.logger.section("Shell Configuration")
+        self.logger.section(self.description)
 
         if self.platform.is_macos:
             return self._configure_macos_shell()
